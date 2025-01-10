@@ -3,19 +3,32 @@ import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import nodemailer from "nodemailer";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
 
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+  role: z.string(),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Use Gmail; replace with your email service if different
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASS, // Your email password or app-specific password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role } = registerSchema.parse(req.body);
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -56,7 +69,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password } = loginSchema.parse(req.body);
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });

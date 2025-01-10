@@ -17,16 +17,27 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const zod_1 = require("zod");
 const prisma = new client_1.PrismaClient();
+const registerSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1, "Name is required"),
+    email: zod_1.z.string().email("Invalid email address"),
+    password: zod_1.z.string().min(6, "Password must be at least 6 characters long"),
+    role: zod_1.z.string(),
+});
+const loginSchema = zod_1.z.object({
+    email: zod_1.z.string().email("Invalid email address"),
+    password: zod_1.z.string().min(6, "Password must be at least 6 characters long"),
+});
 const transporter = nodemailer_1.default.createTransport({
-    service: "gmail", // Use Gmail; replace with your email service if different
+    service: "gmail",
     auth: {
-        user: process.env.EMAIL_USER, // Your email address
-        pass: process.env.EMAIL_PASS, // Your email password or app-specific password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
     },
 });
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role } = registerSchema.parse(req.body);
     try {
         const existingUser = yield prisma.user.findUnique({ where: { email } });
         if (existingUser) {
@@ -61,7 +72,7 @@ const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.register = register;
 const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { email, password } = req.body;
+    const { email, password } = loginSchema.parse(req.body);
     try {
         const user = yield prisma.user.findUnique({ where: { email } });
         if (!user) {
