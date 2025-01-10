@@ -45,10 +45,12 @@ model BorrowedBook {
   borrowDate  DateTime
   returnDate  DateTime?
   fineAmount  Float    @default(0)
+  Transaction Transaction[]
 }
 
 model Transaction {
   id              Int           @id @default(autoincrement())
+  borrowedBook    BorrowedBook  @relation(fields: [borrowedBookId], references: [id])
   borrowedBookId  Int
   paymentDate     DateTime
   amountPaid      Float
