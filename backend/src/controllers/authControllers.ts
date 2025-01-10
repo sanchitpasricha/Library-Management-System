@@ -2,8 +2,17 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import nodemailer from "nodemailer";
 
 const prisma = new PrismaClient();
+
+const transporter = nodemailer.createTransport({
+  service: "gmail", // Use Gmail; replace with your email service if different
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address
+    pass: process.env.EMAIL_PASS, // Your email password or app-specific password
+  },
+});
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role } = req.body;
@@ -21,11 +30,28 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       data: { name, email, password: hashedPassword, role },
     });
 
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string, {
+      expiresIn: "1d",
+    });
+
+    // console.log(
+    //   `Verification link: http://localhost:3000/auth/verify/${token}`
+    // );
+
+    const verificationLink = `http://localhost:3000/auth/verify/${token}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Verify Your Email",
+      text: `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationLink}\n\nThank you!`,
+      html: `<p>Hi ${name},</p><p>Please verify your email by clicking the link below:</p><a href="${verificationLink}">${verificationLink}</a><p>Thank you!</p>`,
+    });
+
     res
       .status(201)
       .json({ message: "User registered. Please verify your email.", user });
   } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error });
   }
 };
 

@@ -16,7 +16,15 @@ exports.verifyEmail = exports.login = exports.register = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
+const nodemailer_1 = __importDefault(require("nodemailer"));
 const prisma = new client_1.PrismaClient();
+const transporter = nodemailer_1.default.createTransport({
+    service: "gmail", // Use Gmail; replace with your email service if different
+    auth: {
+        user: process.env.EMAIL_USER, // Your email address
+        pass: process.env.EMAIL_PASS, // Your email password or app-specific password
+    },
+});
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, email, password, role } = req.body;
     try {
@@ -29,12 +37,26 @@ const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const user = yield prisma.user.create({
             data: { name, email, password: hashedPassword, role },
         });
+        const token = jsonwebtoken_1.default.sign({ id: user.id }, process.env.JWT_SECRET, {
+            expiresIn: "1d",
+        });
+        // console.log(
+        //   `Verification link: http://localhost:3000/auth/verify/${token}`
+        // );
+        const verificationLink = `http://localhost:3000/auth/verify/${token}`;
+        yield transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Verify Your Email",
+            text: `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationLink}\n\nThank you!`,
+            html: `<p>Hi ${name},</p><p>Please verify your email by clicking the link below:</p><a href="${verificationLink}">${verificationLink}</a><p>Thank you!</p>`,
+        });
         res
             .status(201)
             .json({ message: "User registered. Please verify your email.", user });
     }
     catch (error) {
-        res.status(500).json({ error: "Server error" });
+        res.status(500).json({ error });
     }
 });
 exports.register = register;
