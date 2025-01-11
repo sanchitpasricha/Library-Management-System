@@ -58,12 +58,12 @@ model Transaction {
 
 model Category {
   id          Int      @id @default(autoincrement())
-  name        String
+  name        String   @unique
   books       Book[]
 }
 
 model Author {
   id          Int      @id @default(autoincrement())
-  name        String
+  name        String   @unique
   books       Book[]
 }

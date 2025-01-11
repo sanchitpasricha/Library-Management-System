@@ -8,7 +8,7 @@ import {
 const router = express.Router();
 
 router.post("/add", addBook);
-router.get("/:isbn", getBookByISBN);
 router.get("/search", searchBooks);
+router.get("/:isbn", getBookByISBN);
 
 export default router;

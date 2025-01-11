@@ -7,6 +7,6 @@ const express_1 = __importDefault(require("express"));
 const bookControllers_1 = require("../controllers/bookControllers");
 const router = express_1.default.Router();
 router.post("/add", bookControllers_1.addBook);
-router.get("/:isbn", bookControllers_1.getBookByISBN);
 router.get("/search", bookControllers_1.searchBooks);
+router.get("/:isbn", bookControllers_1.getBookByISBN);
 exports.default = router;

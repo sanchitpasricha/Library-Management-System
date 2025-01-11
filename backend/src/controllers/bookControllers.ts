@@ -13,7 +13,34 @@ const bookSchema = z.object({
 
 export const addBook = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { isbn, title, description, copies } = bookSchema.parse(req.body);
+    // Check if the user is an admin
+    const userId = req.body.userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user || user.role !== "admin") {
+      res
+        .status(403)
+        .json({ error: "Access denied. Only admins can add books." });
+      return;
+    }
+
+    const { isbn, title, description, copies, author, category } = req.body;
+
+    let authorRecord = await prisma.author.findUnique({
+      where: { name: author },
+    });
+    if (!authorRecord) {
+      authorRecord = await prisma.author.create({ data: { name: author } });
+    }
+
+    let categoryRecord = await prisma.category.findUnique({
+      where: { name: category },
+    });
+    if (!categoryRecord) {
+      categoryRecord = await prisma.category.create({
+        data: { name: category },
+      });
+    }
 
     const existingBook = await prisma.book.findUnique({ where: { isbn } });
     if (existingBook) {
@@ -22,16 +49,46 @@ export const addBook = async (req: Request, res: Response): Promise<void> => {
     }
 
     const book = await prisma.book.create({
-      data: { isbn, title, description, copies },
+      data: {
+        isbn,
+        title,
+        description,
+        copies,
+        authors: { connect: { id: authorRecord.id } },
+        categories: { connect: { id: categoryRecord.id } },
+      },
     });
 
     res.status(201).json({ message: "Book added successfully", book });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ error: error.errors });
-    } else {
-      res.status(500).json({ error: "Server error" });
-    }
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const searchBooks = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { category, author, availability } = req.body;
+
+  console.log(req.body);
+  try {
+    const books = await prisma.book.findMany({
+      where: {
+        AND: [
+          category
+            ? { categories: { some: { name: category as string } } }
+            : {},
+          author ? { authors: { some: { name: author as string } } } : {},
+          availability ? { copies: { gt: 0 } } : {},
+        ],
+      },
+    });
+
+    res.status(200).json(books);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -49,31 +106,6 @@ export const getBookByISBN = async (
     }
 
     res.status(200).json(book);
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
-};
-
-export const searchBooks = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { category, author, availability } = req.query;
-
-  try {
-    const books = await prisma.book.findMany({
-      where: {
-        AND: [
-          category
-            ? { categories: { some: { name: category as string } } }
-            : {},
-          author ? { authors: { some: { name: author as string } } } : {},
-          availability ? { copies: { gt: 0 } } : {},
-        ],
-      },
-    });
-
-    res.status(200).json(books);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
